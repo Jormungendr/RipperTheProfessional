@@ -1,144 +1,27 @@
-# -*- coding: utf-8 -*-
-
-import os
-import re
 import requests
-from multiprocessing.dummy import Pool
-from lxml import etree
-import copy
-import argparse
-# proxy
-PROXIES = {
-    'http': 'socks5://127.0.0.1:1086',
-    'https': 'socks5://127.0.0.1:1086'
-}
-
-SAVE_FOLDER = '/tmp'
-RETRY = 10
-
-
-def total_match(r):
-    xml = etree.fromstring(r.encode('utf8'))
-    return int(xml.xpath('//posts/@total')[0])
-
-
-def video_match(r):
-    res = set()
-    hd_pattern = re.compile(r'.*"hdUrl":("([^\s,]*)"|false),')
-    default_pattern = re.compile(r'.*src="(\S*)" ', re.DOTALL)
-    xml = etree.fromstring(r.encode('utf8'))
-    for _ in xml.xpath('//video-player'):
-        _ = _.text.replace('\\', '')
-        hd_match = hd_pattern.match(_)
-        default_match = default_pattern.match(_)
-        if hd_match is not None and hd_match.group(1) != 'false':
-            url = hd_match.group(2)
-        elif default_match is not None:
-            url = default_match.group(1)
-        else:
-            continue
-        res.add(url)
-    return list(res)
-
-
-def photo_match(r):
-    res = set()
-    xml = etree.fromstring(r.encode('utf8'))
-    for _ in xml.xpath('//photoset'):
-        _ = _.xpath('//photo/photo-url')
-        for i in _:
-            res.add(i.text)
-    return list(res)
-
-
-def pool(func, data, num=2):
-    p = Pool(num)
-    t = p.map_async(func, data)
-    t.wait()
-    # return t.get()
-
-
-class CrawlerScheduler(object):
-    def __init__(self, user):
-        self.user = user
-        self.url = 'http://{user}.tumblr.com/api/read'.format(user=self.user)
-        self.params = {'num': self.total}
-        self.targets = [self.photo_url, self.video_url]
-        self.save = os.path.join(SAVE_FOLDER, user)
-        if not os.path.exists(self.save):
-            os.makedirs(self.save)
-
-    @property
-    def photo_url(self):
-        self.photo = self.params.copy()
-        self.photo.setdefault('type', 'photo')
-        return self.photo
-
-    @property
-    def video_url(self):
-        self.video = self.params.copy()
-        self.video.setdefault('type', 'photo')
-        return self.video
-
-    @property
-    def total(self):
-        r = self.__connection(url=self.url)
-        return total_match(r)
-
-    def __connection(self, **kwargs):
-        r = requests.get(url=kwargs.get('url'),
-                         params=kwargs.get('params', None),
-                         proxies=PROXIES)
-        if r.status_code == 404:
-            return
-        r.encoding = 'utf8'
-        return r.text
-
-    def __parse(self):
-        html = self.__connection(url=self.url, params=self.params)
-        self.photo = photo_match(r=html)
-        self.video = video_match(r=html)
-
-    def crawler(self):
-        self.__parse()
-        pool(self.download, self.photo + self.video, 100)
-        print('Download Finished')
-
-    def download(self, url):
-        filename = os.path.join(self.save, url.split('/')[-1])
-        if '.' not in filename:
-            filename = '{}.mp4'.format(filename)
-        retry_times = 0
-        while retry_times < RETRY:
-            try:
-                r = requests.get(url=url, proxies=PROXIES, stream=True)
-                if r.status_code == 403:
-                    retry_times = RETRY
-                    print("Access Denied when retrieve %s.\n" % url)
-                    raise Exception("Access Denied")
-                with open(filename, 'wb') as fh:
-                    for chunk in r.iter_content(chunk_size=1024):
-                        fh.write(chunk)
-                break
-            except:
-                # try again
-                retry_times += 1
-
-
-def test():
-    Crawler = CrawlerScheduler('saotunnannan')
-    Crawler.crawler()
-
-
-def main():
-    parser = argparse.ArgumentParser(description='Short sample app')
-
-    parser.add_argument('--name', dest='name', type=str,
-                        help='''sister's name''')
-    args = parser.parse_args()
-    Crawler = CrawlerScheduler(args.name)
-    Crawler.crawler()
-
-
-if __name__ == "__main__":
-    main()
+import newspaper
+from bs4 import BeautifulSoup
+from textrank4zh import TextRank4Keyword
+url = 'http://news.baidu.com/ns?cl=2&rn=20&tn=news&word=%E9%9D%B6%E5%90%91%E6%B2%BB%E7%96%97'
+headers = {
+    'Cookie': 'BIDUPSID=961C93A7CFBBEC9E4B9144374A8E859C; PSTM=1500556476; BAIDUID=961C93A7CFBBEC9E4B9144374A8E859C:SL=0:NR=50:FG=1; __cfduid=d174b5a5af92633cc76a55e30006ac0a01504841743; MCITY=-%3A; SFSSID=eh03n8id6u5rdpc5vod14hh0g1; uc_login_unique=35e59f50df5df016ffe598979acb8455; SIGNIN_UC=70a2711cf1d3d9b1a82d2f87d633bd8a02587503199; uc_recom_mark=cmVjb21tYXJrXzI0NDgxMDk0; locale=zh; BDRCVFR[C0p6oIjvx-c]=mk3SLVN4HKm; BD_CK_SAM=1; PSINO=1; BDSVRTM=265; H_PS_PSSID=',
+    'Host': 'news.baidu.com',
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.62 Safari/537.36'}
+r = requests.get(url=url, headers=headers)
+r.encoding = 'utf8'
+soup = BeautifulSoup(r.text, 'lxml')
+urls = [i.find('a').get('href') for i in soup.find(
+    'div', {'id': 'content_left'}).find_all('h3', {'class': 'c-title'})]
+for i in urls:
+    a = newspaper.Article(i, language='zh')
+    a.download()
+    a.parse()
+    text = a.text
+    tr4w = TextRank4Keyword()
+    tr4w.analyze(text=text, lower=True, window=2)
+    print('关键词')
+    for item in tr4w.get_keywords(20, word_min_len=1):
+        print(item.word, item.weight)
+    print('关键短语')
+    for phrase in tr4w.get_keyphrases(keywords_num=20, min_occur_num=2):
+        print(phrase)
