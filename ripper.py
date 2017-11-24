@@ -2,7 +2,7 @@ import requests
 import newspaper
 from bs4 import BeautifulSoup
 from textrank4zh import TextRank4Keyword
-url = 'http://news.baidu.com/ns?word=%E5%B9%BC%E5%84%BF%E5%9B%AD&tn=news&from=news&cl=2&rn=20&ct=1'
+url = 'http://news.baidu.com/ns?word=%E7%BA%A2%E9%BB%84%E8%93%9D&tn=news&from=news&cl=2&rn=20&ct=1'
 headers = {
     'Cookie': 'BIDUPSID=961C93A7CFBBEC9E4B9144374A8E859C; PSTM=1500556476; BAIDUID=961C93A7CFBBEC9E4B9144374A8E859C:SL=0:NR=50:FG=1; __cfduid=d174b5a5af92633cc76a55e30006ac0a01504841743; MCITY=-%3A; SFSSID=eh03n8id6u5rdpc5vod14hh0g1; uc_login_unique=35e59f50df5df016ffe598979acb8455; SIGNIN_UC=70a2711cf1d3d9b1a82d2f87d633bd8a02587503199; uc_recom_mark=cmVjb21tYXJrXzI0NDgxMDk0; locale=zh; BDRCVFR[C0p6oIjvx-c]=mk3SLVN4HKm; BD_CK_SAM=1; PSINO=1; BDSVRTM=265; H_PS_PSSID=',
     'Host': 'news.baidu.com',
