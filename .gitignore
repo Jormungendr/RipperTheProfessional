@@ -63,3 +63,5 @@ venv/
 .vscode/
 
 *.pkl
+
+*.txt
