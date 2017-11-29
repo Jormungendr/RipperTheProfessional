@@ -1,3 +1,3 @@
 # RipperTheProfessional
 
-分析百度新闻等词源
+分析知乎舆情。
